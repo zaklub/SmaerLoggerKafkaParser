@@ -1,7 +1,9 @@
 package com.example.kafkaparsing.consumer;
 
+import com.example.kafkaparsing.service.AuditDataProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -12,6 +14,9 @@ import org.springframework.stereotype.Component;
 public class RawDataConsumer {
 
     private static final Logger logger = LoggerFactory.getLogger(RawDataConsumer.class);
+
+    @Autowired
+    private AuditDataProcessor auditDataProcessor;
 
     @KafkaListener(topics = "raw-data-topic_kafka", groupId = "raw-data-consumer-group")
     public void consumeRawData(@Payload String message,
@@ -32,6 +37,11 @@ public class RawDataConsumer {
             logger.info("📄 MESSAGE CONTENT:");
             logger.info("{}", message);
             logger.info("════════════════════════════════════════════════════════════");
+            
+            // Process the audit message for Request/Response correlation
+            auditDataProcessor.processAuditMessage(message);
+            
+            logger.info("✅ Audit message processed successfully");
             logger.info("");
             
         } catch (Exception e) {

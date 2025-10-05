@@ -150,10 +150,73 @@ public class ElasticsearchController {
             "GET /api/elasticsearch/indices/{indexName}/mappings - Get mappings for an index",
             "GET /api/elasticsearch/cluster/health - Get cluster health",
             "GET /api/elasticsearch/ping - Ping Elasticsearch",
-            "GET /api/elasticsearch/templates - Get index templates"
+            "GET /api/elasticsearch/templates - Get index templates",
+            "GET /api/elasticsearch/smart-logger/status - Check my_smartlogger_index status",
+            "GET /api/elasticsearch/smart-logger/info - Get my_smartlogger_index info",
+            "GET /api/elasticsearch/smart-logger/count - Get document count"
         ));
         
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Check if my_smartlogger_index exists
+     */
+    @GetMapping("/smart-logger/status")
+    public ResponseEntity<Map<String, Object>> getSmartLoggerStatus() {
+        try {
+            boolean exists = elasticsearchService.checkSmartLoggerIndexExists();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "success");
+            response.put("index", "my_smartlogger_index");
+            response.put("exists", exists);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            return ResponseEntity.ok(createErrorResponse("Error checking my_smartlogger_index status: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Get information about my_smartlogger_index
+     */
+    @GetMapping("/smart-logger/info")
+    public ResponseEntity<Map<String, Object>> getSmartLoggerInfo() {
+        try {
+            Map<String, Object> indexInfo = elasticsearchService.getSmartLoggerIndexInfo();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "success");
+            response.put("index", "my_smartlogger_index");
+            response.put("info", indexInfo);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            return ResponseEntity.ok(createErrorResponse("Error getting my_smartlogger_index info: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Get document count for my_smartlogger_index
+     */
+    @GetMapping("/smart-logger/count")
+    public ResponseEntity<Map<String, Object>> getSmartLoggerCount() {
+        try {
+            long count = elasticsearchService.getSmartLoggerIndexDocumentCount();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "success");
+            response.put("index", "my_smartlogger_index");
+            response.put("document_count", count);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            return ResponseEntity.ok(createErrorResponse("Error getting my_smartlogger_index count: " + e.getMessage()));
+        }
     }
 
     private Map<String, Object> createErrorResponse(String errorMessage) {

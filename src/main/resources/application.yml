@@ -54,6 +54,12 @@ spring:
     connection-timeout: 5000
     socket-timeout: 60000
 
+# Audit Data Processor Configuration
+audit:
+  processor:
+    timeout-minutes: 1  # How long to wait for Request/Response correlation
+    cleanup-interval-minutes: 5  # How often to cleanup old completed transactions
+
 # Logging Configuration
 logging:
   level:
