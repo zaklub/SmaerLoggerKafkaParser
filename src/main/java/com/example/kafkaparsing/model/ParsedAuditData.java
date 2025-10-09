@@ -7,6 +7,8 @@ import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Model representing the parsed audit data that will be indexed in Elasticsearch
@@ -77,10 +79,50 @@ public class ParsedAuditData {
     @Field(type = FieldType.Boolean)
     private Boolean isComplete; // true if both request and response were found
 
+    @JsonProperty("CustomField")
+    @Field(type = FieldType.Nested)
+    private List<CustomFieldEntry> customFields;
+
+    // Inner class for custom field entries
+    public static class CustomFieldEntry {
+        private String key;
+        private String value;
+
+        public CustomFieldEntry() {
+        }
+
+        public CustomFieldEntry(String key, String value) {
+            this.key = key;
+            this.value = value;
+        }
+
+        public String getKey() {
+            return key;
+        }
+
+        public void setKey(String key) {
+            this.key = key;
+        }
+
+        public String getValue() {
+            return value;
+        }
+
+        public void setValue(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String toString() {
+            return "{key='" + key + "', value='" + value + "'}";
+        }
+    }
+
     // Constructors
     public ParsedAuditData() {
         this.indexedAt = LocalDateTime.now();
         this.isComplete = false;
+        this.customFields = new ArrayList<>();
     }
 
     public ParsedAuditData(String correlationId) {
@@ -218,6 +260,24 @@ public class ParsedAuditData {
 
     public void setIsComplete(Boolean isComplete) {
         this.isComplete = isComplete;
+    }
+
+    public List<CustomFieldEntry> getCustomFields() {
+        return customFields;
+    }
+
+    public void setCustomFields(List<CustomFieldEntry> customFields) {
+        this.customFields = customFields;
+    }
+
+    /**
+     * Add a custom field entry
+     */
+    public void addCustomField(String key, String value) {
+        if (this.customFields == null) {
+            this.customFields = new ArrayList<>();
+        }
+        this.customFields.add(new CustomFieldEntry(key, value));
     }
 
     @Override

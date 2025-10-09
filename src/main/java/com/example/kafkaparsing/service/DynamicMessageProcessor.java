@@ -245,44 +245,94 @@ public class DynamicMessageProcessor {
     }
 
     /**
-     * Extract fields from message using database field configuration (mandatory fields only)
+     * Extract fields from message using database field configuration (Mandatory + Custom)
      * Context-aware: Only extracts RequestTime from REQUEST, ResponseTime from RESPONSE
+     * Custom fields only extracted from REQUEST messages
      */
     private void extractFieldsFromMessage(JsonNode messageNode, ParsedAuditData parsedData, 
                                          List<ApiMetadataField> fieldConfig, String messageType) {
-        logger.debug("📋 Extracting {} mandatory fields from {} message", fieldConfig.size(), messageType);
+        
+        int mandatoryCount = 0;
+        int customCount = 0;
+        
+        logger.debug("📋 Extracting fields from {} message", messageType);
         
         for (ApiMetadataField field : fieldConfig) {
             try {
+                String keyStatus = field.getKeyStatus();
                 String elasticsearchField = field.getField();
                 String jsonPath = field.getPath();
                 String datatype = field.getDatatype();
                 String datePattern = field.getDatePatternString();
                 
-                // Skip RequestTime if processing RESPONSE message
-                if ("RequestTime".equals(elasticsearchField) && "RESPONSE".equals(messageType)) {
-                    logger.debug("   ⏭️ Skipping RequestTime extraction from RESPONSE message");
-                    continue;
-                }
-                
-                // Skip ResponseTime if processing REQUEST message
-                if ("ResponseTime".equals(elasticsearchField) && "REQUEST".equals(messageType)) {
-                    logger.debug("   ⏭️ Skipping ResponseTime extraction from REQUEST message");
-                    continue;
-                }
-                
-                if (jsonPath != null && elasticsearchField != null) {
-                    String value = extractFieldByPath(messageNode, jsonPath);
-                    if (value != null) {
-                        setFieldValue(parsedData, elasticsearchField, value, datatype, datePattern);
-                        logger.debug("   ✅ Extracted {}: {} = {}", elasticsearchField, jsonPath, 
-                            value.length() > 50 ? value.substring(0, 50) + "..." : value);
+                if ("Mandatory".equals(keyStatus)) {
+                    // Process Mandatory fields
+                    extractMandatoryField(messageNode, parsedData, field, messageType, elasticsearchField, jsonPath, datatype, datePattern);
+                    mandatoryCount++;
+                } 
+                else if ("Custom".equals(keyStatus)) {
+                    // Process Custom fields - ONLY from REQUEST messages
+                    if ("REQUEST".equals(messageType)) {
+                        extractCustomField(messageNode, parsedData, elasticsearchField, jsonPath);
+                        customCount++;
                     } else {
-                        logger.debug("   ⚠️ Field {} not found at path: {}", elasticsearchField, jsonPath);
+                        logger.debug("   ⏭️ Skipping Custom field '{}' from {} message", elasticsearchField, messageType);
                     }
                 }
+                
             } catch (Exception e) {
                 logger.warn("⚠️ Failed to extract field {}: {}", field.getIdentifier(), e.getMessage());
+            }
+        }
+        
+        logger.debug("📊 Extracted {} Mandatory fields and {} Custom fields from {} message", 
+            mandatoryCount, customCount, messageType);
+    }
+
+    /**
+     * Extract mandatory field with context awareness
+     */
+    private void extractMandatoryField(JsonNode messageNode, ParsedAuditData parsedData, ApiMetadataField field,
+                                      String messageType, String elasticsearchField, String jsonPath, 
+                                      String datatype, String datePattern) {
+        // Skip RequestTime if processing RESPONSE message
+        if ("RequestTime".equals(elasticsearchField) && "RESPONSE".equals(messageType)) {
+            logger.debug("   ⏭️ Skipping RequestTime extraction from RESPONSE message");
+            return;
+        }
+        
+        // Skip ResponseTime if processing REQUEST message
+        if ("ResponseTime".equals(elasticsearchField) && "REQUEST".equals(messageType)) {
+            logger.debug("   ⏭️ Skipping ResponseTime extraction from REQUEST message");
+            return;
+        }
+        
+        if (jsonPath != null && elasticsearchField != null) {
+            String value = extractFieldByPath(messageNode, jsonPath);
+            if (value != null) {
+                setFieldValue(parsedData, elasticsearchField, value, datatype, datePattern);
+                logger.debug("   ✅ Mandatory Field - {}: {} = {}", elasticsearchField, jsonPath, 
+                    value.length() > 50 ? value.substring(0, 50) + "..." : value);
+            } else {
+                logger.debug("   ⚠️ Mandatory Field {} not found at path: {}", elasticsearchField, jsonPath);
+            }
+        }
+    }
+
+    /**
+     * Extract custom field and add to CustomField array
+     */
+    private void extractCustomField(JsonNode messageNode, ParsedAuditData parsedData, 
+                                   String fieldName, String jsonPath) {
+        if (jsonPath != null && fieldName != null) {
+            String value = extractFieldByPath(messageNode, jsonPath);
+            if (value != null) {
+                // Add to CustomField array with field name as key
+                parsedData.addCustomField(fieldName, value);
+                logger.debug("   ✅ Custom Field - {}: {} = {}", fieldName, jsonPath, 
+                    value.length() > 50 ? value.substring(0, 50) + "..." : value);
+            } else {
+                logger.debug("   ⚠️ Custom Field {} not found at path: {}", fieldName, jsonPath);
             }
         }
     }

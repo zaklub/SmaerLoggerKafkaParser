@@ -78,7 +78,7 @@ public class ApiMetadataService {
     }
 
     /**
-     * Get field configuration for an API name (returns mandatory fields only)
+     * Get field configuration for an API name (returns ALL fields - Mandatory + Custom)
      */
     public List<ApiMetadataField> getFieldConfigurationForApi(String apiName) {
         try {
@@ -94,13 +94,19 @@ public class ApiMetadataService {
             
             ApiMetadata metadata = metadataOpt.get();
             
-            // Get mandatory fields
-            List<ApiMetadataField> fields = getMandatoryFieldsByApiMetadataId(metadata.getUniqueId());
+            // Get ALL fields (Mandatory + Custom)
+            List<ApiMetadataField> fields = getFieldsByApiMetadataId(metadata.getUniqueId());
             
-            logger.info("📊 Field configuration loaded for API '{}': {} mandatory fields", apiName, fields.size());
+            // Count by type
+            long mandatoryCount = fields.stream().filter(f -> "Mandatory".equals(f.getKeyStatus())).count();
+            long customCount = fields.stream().filter(f -> "Custom".equals(f.getKeyStatus())).count();
+            
+            logger.info("📊 Field configuration loaded for API '{}': {} total fields ({} Mandatory, {} Custom)", 
+                apiName, fields.size(), mandatoryCount, customCount);
+            
             for (ApiMetadataField field : fields) {
-                logger.debug("   - Field: {}, Path: {}, Datatype: {}", 
-                    field.getField(), field.getPath(), field.getDatatype());
+                logger.debug("   - Field: {}, Path: {}, KeyStatus: {}, Datatype: {}", 
+                    field.getField(), field.getPath(), field.getKeyStatus(), field.getDatatype());
             }
             
             return fields;
