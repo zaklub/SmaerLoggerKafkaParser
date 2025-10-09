@@ -1,6 +1,6 @@
 package com.example.kafkaparsing.controller;
 
-import com.example.kafkaparsing.service.AuditDataProcessor;
+import com.example.kafkaparsing.service.DynamicMessageProcessor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +17,7 @@ import java.util.Map;
 public class AuditProcessorController {
 
     @Autowired
-    private AuditDataProcessor auditDataProcessor;
+    private DynamicMessageProcessor dynamicMessageProcessor;
 
     /**
      * Get audit processor statistics
@@ -25,7 +25,7 @@ public class AuditProcessorController {
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getStatistics() {
         try {
-            String stats = auditDataProcessor.getStatistics();
+            String stats = dynamicMessageProcessor.getStatistics();
             
             Map<String, Object> response = new HashMap<>();
             response.put("status", "success");
@@ -49,7 +49,7 @@ public class AuditProcessorController {
     public ResponseEntity<Map<String, Object>> health() {
         Map<String, Object> response = new HashMap<>();
         response.put("status", "success");
-        response.put("message", "Audit Data Processor is running!");
+        response.put("message", "Dynamic Message Processor is running!");
         response.put("endpoints", new String[]{
             "GET /api/audit-processor/stats - Get processor statistics",
             "GET /api/audit-processor/health - Health check"

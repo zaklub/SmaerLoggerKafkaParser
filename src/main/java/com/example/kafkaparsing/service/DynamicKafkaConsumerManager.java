@@ -2,6 +2,9 @@ package com.example.kafkaparsing.service;
 
 import com.example.kafkaparsing.entity.DataSourceConnection;
 import com.example.kafkaparsing.model.KafkaConnectionDetails;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
@@ -35,8 +38,14 @@ public class DynamicKafkaConsumerManager {
     @Autowired
     private KafkaMessageForwarder kafkaMessageForwarder;
 
+    @Autowired
+    private DynamicMessageProcessor dynamicMessageProcessor;
+
     // Store active containers by connection ID
     private final Map<UUID, List<ConcurrentMessageListenerContainer<String, String>>> activeContainers = new ConcurrentHashMap<>();
+    
+    // ObjectMapper for JSON manipulation
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @PostConstruct
     public void initializeConsumers() {
@@ -104,11 +113,19 @@ public class DynamicKafkaConsumerManager {
                     logger.info("Received message from topic '{}' (connection: {}): key={}, partition={}, offset={}", 
                         record.topic(), connection.getConnectionName(), record.key(), record.partition(), record.offset());
 
-                    // Forward message to destination Kafka
+                    // Process message dynamically and forward to raw-data-topic_kafka
                     try {
-                        kafkaMessageForwarder.forwardMessage(record.key(), record.value(), null);
+                        // First, enhance the message with connectionName and extractedApiName
+                        String enhancedMessage = addConnectionNameToMessage(record.value(), connection.getConnectionName(), details);
+                        
+                        // Forward the enhanced message to raw-data-topic_kafka for RawDataConsumer
+                        kafkaMessageForwarder.forwardMessage(record.key(), enhancedMessage, null);
+                        
+                        // Process the ENHANCED message with dynamic field extraction
+                        dynamicMessageProcessor.processMessage(enhancedMessage, connection.getConnectionName(), details);
+                        
                     } catch (Exception e) {
-                        logger.error("Error forwarding message from topic {}: {}", record.topic(), e.getMessage(), e);
+                        logger.error("Error processing message from topic {}: {}", record.topic(), e.getMessage(), e);
                     }
                 });
 
@@ -184,6 +201,113 @@ public class DynamicKafkaConsumerManager {
 
         activeContainers.clear();
         logger.info("All Kafka consumers shut down");
+    }
+
+    /**
+     * Add connection name and API name to the message JSON before forwarding
+     */
+    private String addConnectionNameToMessage(String originalMessage, String connectionName, KafkaConnectionDetails details) {
+        try {
+            // Parse the original message as JSON
+            JsonNode jsonNode = objectMapper.readTree(originalMessage);
+            
+            // Extract API name using field configuration
+            String apiName = extractApiNameFromMessage(jsonNode, details);
+            
+            // If it's an object, add the connection name and API name
+            if (jsonNode.isObject()) {
+                ObjectNode objectNode = (ObjectNode) jsonNode;
+                objectNode.put("connectionName", connectionName);
+                if (apiName != null) {
+                    objectNode.put("extractedApiName", apiName);
+                }
+                
+                // Convert back to JSON string
+                return objectMapper.writeValueAsString(objectNode);
+            } else {
+                // If it's not a JSON object, wrap it in an object with connection name
+                ObjectNode wrapper = objectMapper.createObjectNode();
+                wrapper.put("originalMessage", originalMessage);
+                wrapper.put("connectionName", connectionName);
+                if (apiName != null) {
+                    wrapper.put("extractedApiName", apiName);
+                }
+                
+                return objectMapper.writeValueAsString(wrapper);
+            }
+            
+        } catch (Exception e) {
+            logger.warn("Failed to add connection name to message, forwarding original: {}", e.getMessage());
+            // If JSON parsing fails, wrap the original message
+            try {
+                ObjectNode wrapper = objectMapper.createObjectNode();
+                wrapper.put("originalMessage", originalMessage);
+                wrapper.put("connectionName", connectionName);
+                return objectMapper.writeValueAsString(wrapper);
+            } catch (Exception ex) {
+                logger.error("Failed to wrap message with connection name: {}", ex.getMessage());
+                return originalMessage; // Fallback to original message
+            }
+        }
+    }
+
+    /**
+     * Extract API name from message using field configuration
+     */
+    private String extractApiNameFromMessage(JsonNode messageNode, KafkaConnectionDetails details) {
+        try {
+            // Look for APIName field in the fields configuration
+            if (details.getFields() != null) {
+                for (Map<String, Object> fieldConfig : details.getFields()) {
+                    String elasticsearchField = (String) fieldConfig.get("field");
+                    String jsonPath = (String) fieldConfig.get("path");
+                    
+                    // If this is the APIName field mapping
+                    if ("APIName".equals(elasticsearchField) && jsonPath != null) {
+                        return extractFieldByPath(messageNode, jsonPath);
+                    }
+                }
+            }
+            
+            // Fallback: try common API name field paths
+            String apiName = extractFieldByPath(messageNode, "api_name");
+            if (apiName == null) {
+                apiName = extractFieldByPath(messageNode, "apiName");
+            }
+            if (apiName == null) {
+                apiName = extractFieldByPath(messageNode, "API_NAME");
+            }
+            
+            return apiName;
+            
+        } catch (Exception e) {
+            logger.debug("⚠️ Failed to extract API name: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Extract field value using JSON path
+     */
+    private String extractFieldByPath(JsonNode node, String path) {
+        if (path == null || path.isEmpty()) {
+            return null;
+        }
+        
+        try {
+            String[] pathParts = path.split("\\.");
+            JsonNode current = node;
+            
+            for (String part : pathParts) {
+                if (current == null) return null;
+                current = current.get(part);
+            }
+            
+            return current != null && !current.isNull() ? current.asText() : null;
+        } catch (Exception e) {
+            logger.debug("⚠️ Failed to extract field by path '{}': {}", path, e.getMessage());
+            return null;
+        }
     }
 }
 

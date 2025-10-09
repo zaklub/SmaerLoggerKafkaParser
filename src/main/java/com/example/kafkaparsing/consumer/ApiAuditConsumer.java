@@ -2,6 +2,8 @@ package com.example.kafkaparsing.consumer;
 
 import com.example.kafkaparsing.model.ApiAuditLog;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +18,9 @@ import org.springframework.stereotype.Component;
 public class ApiAuditConsumer {
 
     private static final Logger logger = LoggerFactory.getLogger(ApiAuditConsumer.class);
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     private static final String RAW_DATA_TOPIC = "raw-data-topic_kafka";
 
     @Autowired
