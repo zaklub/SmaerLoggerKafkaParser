@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  # Spring Boot Application Only
+  # Connects to existing PostgreSQL, Kafka, and Elasticsearch on the host
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kafka-parser-app
+    env_file:
+      - config.env
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    network_mode: bridge
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+

@@ -2,7 +2,11 @@ package com.example.kafkaparsing.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class ApiMetadata {
+/**
+ * Model for API request/response metadata
+ * Note: This is different from entity.ApiMetadata which is for database table
+ */
+public class ApiRequestMetadata {
 
     @JsonProperty("client_ip")
     private String clientIp;
@@ -28,12 +32,13 @@ public class ApiMetadata {
     @JsonProperty("processing_time_ms")
     private Long processingTimeMs;
 
-    // Default constructor
-    public ApiMetadata() {}
+    // Constructors
+    public ApiRequestMetadata() {
+    }
 
-    // Constructor with parameters
-    public ApiMetadata(String clientIp, String userAgent, String contentType, Long contentLength, 
-                      String httpMethod, String endpoint, Integer responseStatus, Long processingTimeMs) {
+    public ApiRequestMetadata(String clientIp, String userAgent, String contentType, 
+                            Long contentLength, String httpMethod, String endpoint,
+                            Integer responseStatus, Long processingTimeMs) {
         this.clientIp = clientIp;
         this.userAgent = userAgent;
         this.contentType = contentType;
@@ -111,7 +116,7 @@ public class ApiMetadata {
 
     @Override
     public String toString() {
-        return "ApiMetadata{" +
+        return "ApiRequestMetadata{" +
                 "clientIp='" + clientIp + '\'' +
                 ", userAgent='" + userAgent + '\'' +
                 ", contentType='" + contentType + '\'' +
@@ -123,5 +128,4 @@ public class ApiMetadata {
                 '}';
     }
 }
-
 

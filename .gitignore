@@ -54,6 +54,9 @@ application-local.yml
 application-dev.yml
 application-prod.yml
 
+# Docker Configuration (contains sensitive data)
+config.env
+
 # Logs
 logs/
 *.log

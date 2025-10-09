@@ -25,7 +25,7 @@ public class ApiAuditLog {
     private String logType; // REQUEST or RESPONSE
 
     @JsonProperty("metadata")
-    private ApiMetadata metadata;
+    private ApiRequestMetadata metadata;
 
     @JsonProperty("payload")
     private Object payload;
@@ -37,7 +37,7 @@ public class ApiAuditLog {
     }
 
     // Constructor with parameters
-    public ApiAuditLog(String apiName, String requestId, String logType, ApiMetadata metadata, Object payload) {
+    public ApiAuditLog(String apiName, String requestId, String logType, ApiRequestMetadata metadata, Object payload) {
         this();
         this.apiName = apiName;
         this.requestId = requestId;
@@ -87,11 +87,11 @@ public class ApiAuditLog {
         this.logType = logType;
     }
 
-    public ApiMetadata getMetadata() {
+    public ApiRequestMetadata getMetadata() {
         return metadata;
     }
 
-    public void setMetadata(ApiMetadata metadata) {
+    public void setMetadata(ApiRequestMetadata metadata) {
         this.metadata = metadata;
     }
 
