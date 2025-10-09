@@ -271,12 +271,22 @@ public class DynamicMessageProcessor {
                     mandatoryCount++;
                 } 
                 else if ("Custom".equals(keyStatus)) {
-                    // Process Custom fields - ONLY from REQUEST messages
-                    if ("REQUEST".equals(messageType)) {
-                        extractCustomField(messageNode, parsedData, elasticsearchField, jsonPath);
-                        customCount++;
+                    // Process Custom fields - check message_type from database
+                    String fieldMessageType = field.getMessageType();
+                    
+                    // If message_type is specified, check if it matches
+                    if (fieldMessageType != null && !fieldMessageType.isEmpty()) {
+                        if (fieldMessageType.equalsIgnoreCase(messageType)) {
+                            extractCustomField(messageNode, parsedData, elasticsearchField, jsonPath, fieldMessageType);
+                            customCount++;
+                        } else {
+                            logger.debug("   ⏭️ Skipping Custom field '{}' (requires {} message, current: {})", 
+                                elasticsearchField, fieldMessageType, messageType);
+                        }
                     } else {
-                        logger.debug("   ⏭️ Skipping Custom field '{}' from {} message", elasticsearchField, messageType);
+                        // If message_type is NULL, extract from current message
+                        extractCustomField(messageNode, parsedData, elasticsearchField, jsonPath, "ANY");
+                        customCount++;
                     }
                 }
                 
@@ -290,29 +300,32 @@ public class DynamicMessageProcessor {
     }
 
     /**
-     * Extract mandatory field with context awareness
+     * Extract mandatory field with database-driven context awareness
      */
     private void extractMandatoryField(JsonNode messageNode, ParsedAuditData parsedData, ApiMetadataField field,
                                       String messageType, String elasticsearchField, String jsonPath, 
                                       String datatype, String datePattern) {
-        // Skip RequestTime if processing RESPONSE message
-        if ("RequestTime".equals(elasticsearchField) && "RESPONSE".equals(messageType)) {
-            logger.debug("   ⏭️ Skipping RequestTime extraction from RESPONSE message");
-            return;
-        }
         
-        // Skip ResponseTime if processing REQUEST message
-        if ("ResponseTime".equals(elasticsearchField) && "REQUEST".equals(messageType)) {
-            logger.debug("   ⏭️ Skipping ResponseTime extraction from REQUEST message");
-            return;
+        // Check if this field should be extracted from current message type
+        String fieldMessageType = field.getMessageType();
+        
+        if (fieldMessageType != null && !fieldMessageType.isEmpty()) {
+            // Field has specific message type requirement
+            if (!fieldMessageType.equalsIgnoreCase(messageType)) {
+                logger.debug("   ⏭️ Skipping {} (requires {} message, current: {})", 
+                    elasticsearchField, fieldMessageType, messageType);
+                return;
+            }
         }
+        // If message_type is NULL, extract from both REQUEST and RESPONSE
         
         if (jsonPath != null && elasticsearchField != null) {
             String value = extractFieldByPath(messageNode, jsonPath);
             if (value != null) {
                 setFieldValue(parsedData, elasticsearchField, value, datatype, datePattern);
-                logger.debug("   ✅ Mandatory Field - {}: {} = {}", elasticsearchField, jsonPath, 
-                    value.length() > 50 ? value.substring(0, 50) + "..." : value);
+                logger.debug("   ✅ Mandatory Field - {}: {} = {} (MsgType: {})", elasticsearchField, jsonPath, 
+                    value.length() > 50 ? value.substring(0, 50) + "..." : value, 
+                    fieldMessageType != null ? fieldMessageType : "ANY");
             } else {
                 logger.debug("   ⚠️ Mandatory Field {} not found at path: {}", elasticsearchField, jsonPath);
             }
@@ -323,14 +336,14 @@ public class DynamicMessageProcessor {
      * Extract custom field and add to CustomField array
      */
     private void extractCustomField(JsonNode messageNode, ParsedAuditData parsedData, 
-                                   String fieldName, String jsonPath) {
+                                   String fieldName, String jsonPath, String fieldMessageType) {
         if (jsonPath != null && fieldName != null) {
             String value = extractFieldByPath(messageNode, jsonPath);
             if (value != null) {
                 // Add to CustomField array with field name as key
                 parsedData.addCustomField(fieldName, value);
-                logger.debug("   ✅ Custom Field - {}: {} = {}", fieldName, jsonPath, 
-                    value.length() > 50 ? value.substring(0, 50) + "..." : value);
+                logger.debug("   ✅ Custom Field - {}: {} = {} (MsgType: {})", fieldName, jsonPath, 
+                    value.length() > 50 ? value.substring(0, 50) + "..." : value, fieldMessageType);
             } else {
                 logger.debug("   ⚠️ Custom Field {} not found at path: {}", fieldName, jsonPath);
             }

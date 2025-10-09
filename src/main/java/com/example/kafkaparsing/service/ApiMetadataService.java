@@ -105,8 +105,9 @@ public class ApiMetadataService {
                 apiName, fields.size(), mandatoryCount, customCount);
             
             for (ApiMetadataField field : fields) {
-                logger.debug("   - Field: {}, Path: {}, KeyStatus: {}, Datatype: {}", 
-                    field.getField(), field.getPath(), field.getKeyStatus(), field.getDatatype());
+                logger.debug("   - Field: {}, Path: {}, KeyStatus: {}, MessageType: {}, Datatype: {}", 
+                    field.getField(), field.getPath(), field.getKeyStatus(), 
+                    field.getMessageType() != null ? field.getMessageType() : "ANY", field.getDatatype());
             }
             
             return fields;

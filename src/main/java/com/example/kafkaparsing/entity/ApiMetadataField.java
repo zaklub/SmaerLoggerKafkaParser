@@ -39,6 +39,9 @@ public class ApiMetadataField {
     @Column(name = "date_pattern_string")
     private String datePatternString;
 
+    @Column(name = "message_type")
+    private String messageType;
+
     // Constructors
     public ApiMetadataField() {
     }
@@ -120,6 +123,14 @@ public class ApiMetadataField {
         this.datePatternString = datePatternString;
     }
 
+    public String getMessageType() {
+        return messageType;
+    }
+
+    public void setMessageType(String messageType) {
+        this.messageType = messageType;
+    }
+
     @Override
     public String toString() {
         return "ApiMetadataField{" +
@@ -132,6 +143,7 @@ public class ApiMetadataField {
                 ", path='" + path + '\'' +
                 ", apiMetadataId=" + apiMetadataId +
                 ", datePatternString='" + datePatternString + '\'' +
+                ", messageType='" + messageType + '\'' +
                 '}';
     }
 }
